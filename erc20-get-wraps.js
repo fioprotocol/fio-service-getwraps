@@ -1,72 +1,63 @@
 /**
- * Gets "custodian" events from the erc20 contract. Requires a .env file with:
+ * Gets "wrapped" events from the erc20 contract. 
+ * 
+ * Requires a .env file with:
  *   ethInfura=https://mainnet.infura.io/v3/<key>
  *   erc20Contract=<contractaddress>
+ * 
+ * Recommend run interval: every 30 minutes
+ * Console logs: send to discord if wrap occurs. Do not send to discord if 'No token wraps' is returned.
  */
-
-//const Web3 = require('web3');
 
 import Web3 from 'web3';
 import dotenv from 'dotenv';
+import { erc20ABI } from './contracts/erc20.js';
 dotenv.config();
 
 const { ethInfura, erc20Contract } = process.env;
 
-console.log('eth: ', erc20Contract)
-
 const web3 = new Web3(ethInfura);
-//import * as erc20ABI from './contracts/erc20.json';
-//const erc20ABI = require("./Contracts/ERC20.json");
-import erc20ABI from './contracts/erc20.json' assert { type: 'JSON' };
-//const erc20ABI = await fetch('contracts/erc20.json')
-
-//import { readFile } from 'fs/promises';
-
-const erc20ABI = JSON.parse(await readFile(new URL('./contracts/erc20.json', import.meta.url)));
-
-
 const wfioContract = new web3.eth.Contract(erc20ABI, erc20Contract);
 
-//const lastBlockNumber = await web3.eth.getBlockNumber()
+const lastBlockNumber = await web3.eth.getBlockNumber();
 
+function toDateTime(secs) {
+  var t = new Date(1970, 0, 1);
+  t.setSeconds(secs);
+  return t.toLocaleDateString('en-US');
+}
 
 const getWraps = async () => {
 
-  //console.log('lastblock: ', lastBlockNumber)
+  const blocksPer30Min = 150;  // Approximate number of blocks ever 30 minutes on Ethereum
+  const threshold = 1000000000000;   // Sends warning for unwraps > 1000 FIO
+  const billion = 1000000000;
+  let wrap, wrapDate;
+  let wraps = [];
   
 
-  try {
-    let approvals = [];
+  const wrapEvents = await wfioContract.getPastEvents('wrapped', {
+      fromBlock: lastBlockNumber - blocksPer30Min,
+      toBlock: 'latest'
+  })
 
-    const transactions = await wfioContract.getPastEvents('consensus_activity', {
-        fromBlock: 0,
-        toBlock: 'latest'
-    })
+  if (wrapEvents.length > 0) {  
+    for (wrap in wrapEvents) {
+        let notice = "Wrap"
+        const blockInfo = await web3.eth.getBlock(wrapEvents[wrap].blockNumber);
+        wrapDate = toDateTime(blockInfo.timestamp);
+        if ( wrapEvents[wrap].returnValues.amount > threshold ) { notice = "WARNING LARGE WRAP" }
+        wraps.push([notice, wrapEvents[wrap].returnValues.account, wrapEvents[wrap].returnValues.amount, wrapDate]);
+    }; 
+  };
 
-    let i = 0;
-    for (txn in transactions) {
-        if (transactions[txn].returnValues.signer === 'custodian') {
-          approvals[i] = {"account": transactions[txn].returnValues.account, "indexhash": transactions[txn].returnValues.indexhash};
-          i++;
-        }
-    }
-    
-    approvals.sort();
-
-    let currentAcct;
-    approvals.forEach(function (approval, index) {
-      if (approval.account != currentAcct) {
-        currentAcct = approval.account;
-        console.log("Account: ", currentAcct);
-        console.log("    Approval: ", approval.indexhash);
-      } else {
-        console.log("    Approval: ", approval.indexhash);
-      }
+  // Output to conole
+  if ( wraps.length == 0 ) {
+    console.log('No token wraps')
+  } else {
+    wraps.forEach(element => {
+      console.log(`${element[0]}: ${element[1]} wrapped ${element[2] / billion} FIO on ${element[3]}`);
     });
-
-      
-  } catch (err) {
-      console.log('Error: ', err);
   }
 
 }

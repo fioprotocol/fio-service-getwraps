@@ -2,7 +2,7 @@
     "name": "fio-service-getwraps",
     "version": "1.0.0",
     "description": "A service to get token wrap events on the Ethereum ERC-20 wFIO contract.",
-    "main": "./index.js",
+    "main": "./erc20-get-wraps.js",
     "sideEffects": false,
     "type": "module",
     "repository": {
@@ -10,11 +10,10 @@
         "url": "https://github.com/fioprotocol/fio-service-getwraps"
     },
     "dependencies": {
-        "node-fetch": "^3.3.0",
         "dotenv": "^16.0.3",
         "web3": "1.8.1"
     },
     "scripts": {
-        "erc20-get-wraps": "node src/erc20-get-wraps.js"
+        "erc20-get-wraps": "node erc20-get-wraps.js"
     }
 }
