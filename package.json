@@ -1,5 +1,5 @@
 {
-    "name": "fio-service-getwraps",
+    "name": "@fioprotocol/fio-service-getwraps",
     "version": "1.0.0",
     "description": "A service to get token wrap events on the Ethereum ERC-20 wFIO contract.",
     "main": "./erc20-get-wraps.js",
